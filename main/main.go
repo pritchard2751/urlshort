@@ -3,42 +3,67 @@ package main
 import (
 	"fmt"
 	"net/http"
-
-	"github.com/gophercises/urlshort"
+	"github.com/pritchard2751/urlshort"
 )
 
-func main() {
-	mux := defaultMux()
+func defaultMux() *http.ServeMux {
+	mux := http.NewServeMux()
+	mux.HandleFunc("/", muxHandler)
+	return mux
+}
 
-	// Build the MapHandler using the mux as the fallback
-	pathsToUrls := map[string]string{
+func muxHandler(w http.ResponseWriter, r *http.Request) {
+	msg := fmt.Sprintf("Default Handler: No such page: %s\n", r.URL)
+	http.Error(w, msg, http.StatusNotFound)
+}
+
+type UrlPaths map[string]string
+
+// Here we have implemented the ServeHTTP method on the UrlPaths object
+// meaning that it satisfies the Handler interface
+func (paths UrlPaths) ServeHTTP(w http.ResponseWriter, r *http.Request) {
+	path := r.URL.Path
+	longURL, ok := paths[path]
+	if ok {
+		http.Redirect(w, r, longURL, http.StatusFound)
+	}else {
+		msg := fmt.Sprintf("No such page: %s\n" , r.URL)
+		http.Error(w, msg, http.StatusNotFound)
+	}
+}
+
+func main() {
+
+     pathsToUrls := UrlPaths{
 		"/urlshort-godoc": "https://godoc.org/github.com/gophercises/urlshort",
 		"/yaml-godoc":     "https://godoc.org/gopkg.in/yaml.v2",
 	}
-	mapHandler := urlshort.MapHandler(pathsToUrls, mux)
 
-	// Build the YAMLHandler using the mapHandler as the
-	// fallback
+	// Default HTTP request router
+	mux := defaultMux()
+	
+	// Build the MapHandler using the mux as the fallback
+	mapHandler := urlshort.MapHandler(pathsToUrls, mux)
+	
 	yaml := `
 - path: /urlshort
   url: https://github.com/gophercises/urlshort
 - path: /urlshort-final
   url: https://github.com/gophercises/urlshort/tree/solution
+- path: /goo
+  url: https://google.com
 `
+	// Build the YAMLHandler using the mapHandler as the
+	// fallback
 	yamlHandler, err := urlshort.YAMLHandler([]byte(yaml), mapHandler)
 	if err != nil {
 		panic(err)
 	}
+
 	fmt.Println("Starting the server on :8080")
+	//http.ListenAndServe(":8080", mux)
+	//http.ListenAndServe(":8080", pathsToUrls)
+	//http.ListenAndServe(":8080", mapHandler)
 	http.ListenAndServe(":8080", yamlHandler)
 }
 
-func defaultMux() *http.ServeMux {
-	mux := http.NewServeMux()
-	mux.HandleFunc("/", hello)
-	return mux
-}
-
-func hello(w http.ResponseWriter, r *http.Request) {
-	fmt.Fprintln(w, "Hello, world!")
-}
