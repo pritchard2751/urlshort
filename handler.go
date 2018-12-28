@@ -3,6 +3,8 @@ package urlshort
 import (
 	"fmt"
 	"net/http"
+	"encoding/json"
+
 	"gopkg.in/yaml.v2"
 )
 
@@ -23,16 +25,22 @@ func MapHandler(pathsToUrls map[string]string, fallback http.Handler) http.Handl
 	}
 }
 
-// A struct for unmarshaling the YAML
+// A struct for unmarshaling the data
 type PathStore []struct {
-    Path string `yaml:"path,omitempty"`
-	Url  string `yaml:"url,omitempty"`
+    Path string `json:"path",omitempty yaml:"path,omitempty"`
+	Url  string `json:"url",omitempty yaml:"url,omitempty"`
 }
 
 func parseYAML(yml []byte, urlPaths *PathStore) error {
 	fmt.Println("Attempting to parse YAML")
 	err := yaml.Unmarshal(yml, urlPaths)
 	return err
+}
+
+func parseJSON(jsonData []byte, urlPaths *PathStore) error {
+	fmt.Println("Attempting to parse JSON")
+	err := json.Unmarshal(jsonData, urlPaths)
+    return err
 }
 
 func buildMap(pathStruct PathStore) map[string]string {
@@ -44,6 +52,17 @@ func buildMap(pathStruct PathStore) map[string]string {
 		pathMap[pathdata.Path] = pathdata.Url
 	}
 	return pathMap
+}
+
+func JSONHandler(json []byte, fallback http.Handler) (http.HandlerFunc, error) {
+	var parsedJson PathStore
+	err := parseJSON(json, &parsedJson)
+	if err != nil {
+		print(err)
+		return nil, err
+	}
+	pathMap := buildMap(parsedJson)
+	return MapHandler(pathMap, fallback), nil
 }
 
 func YAMLHandler(yml []byte, fallback http.Handler) (http.HandlerFunc, error) {
