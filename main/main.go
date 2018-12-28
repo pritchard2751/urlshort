@@ -49,7 +49,7 @@ func main() {
 
 	// Build the YAMLHandler using the mapHandler as the
 	// fallback
-	yaml, err := ioutil.ReadFile("../urlpaths.yaml")
+	yaml, err := ioutil.ReadFile("../data/redirect.yaml")
 	if err != nil {
 		fmt.Println(err)
 	} else {
